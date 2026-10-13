@@ -85,7 +85,7 @@
   (let ((prev (simpc--previous-non-empty-line)))
     (if (not prev)
         (current-indentation)
-      (let ((indent-len 4)
+      (let ((indent-len tab-width)
             (cur-line (string-trim-right (thing-at-point 'line t)))
             (prev-line (string-trim-right (car prev)))
             (prev-indent (cdr prev)))

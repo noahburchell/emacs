@@ -115,6 +115,37 @@
 (add-hook 'yaml-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'porth-mode-hook 'rc/set-up-whitespace-handling)
 
+(defconst rc/tab-display-wide
+  `(face nil display ,(propertize "»\t" 'face 'whitespace-tab)))
+(defconst rc/tab-display-narrow
+  `(face nil display ,(propertize "»" 'face 'whitespace-tab)))
+
+(defun rc/tab-display ()
+  (if (= (% (1+ (save-excursion
+                  (goto-char (match-beginning 0))
+                  (current-column)))
+            tab-width)
+         0)
+      rc/tab-display-narrow
+    rc/tab-display-wide))
+
+(defun rc/set-up-c-tabs ()
+  (interactive)
+  (require 'whitespace)
+  (setq-local tab-width 8
+              indent-tabs-mode t
+              c-basic-offset 8
+              backward-delete-char-untabify-method nil
+              whitespace-style (seq-difference whitespace-style
+                                               '(tab-mark indentation space-after-tab space-before-tab)))
+  (add-to-list (make-local-variable 'font-lock-extra-managed-props) 'display)
+  (font-lock-add-keywords nil '(("\t" 0 (rc/tab-display))) t)
+  (local-set-key (kbd "TAB") 'self-insert-command))
+
+(add-hook 'c++-mode-hook 'rc/set-up-c-tabs)
+(add-hook 'c-mode-hook 'rc/set-up-c-tabs)
+(add-hook 'simpc-mode-hook 'rc/set-up-c-tabs)
+
 (global-display-line-numbers-mode)
 
 (rc/require 'magit)
@@ -260,7 +291,7 @@
     (shell-command-on-region
      (point-min)
      (point-max)
-     "astyle --style=kr"
+     "astyle --style=kr --indent=tab=8"
      nil
      t)
     (goto-char (point-min))
@@ -280,3 +311,5 @@
 (load custom-file t t)
 
 (define-key key-translation-map [?\C-h] [?\C-?])
+
+(global-set-key (kbd "C-S-v") 'yank)
