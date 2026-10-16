@@ -31,14 +31,129 @@
 (global-set-key (kbd "M-x") 'smex)
 (global-set-key (kbd "C-c C-c M-x") 'execute-extended-command)
 
-(setq-default c-basic-offset 4
-              c-default-style '((java-mode . "java")
+(setopt treesit-enabled-modes t
+        treesit-auto-install-grammar 'always)
+
+(defun c-lineup-arglist-tabs-only (ignored)
+  "Line up argument lists by tabs, not spaces"
+  (let* ((anchor (c-langelem-pos c-syntactic-element))
+         (column (c-langelem-2nd-pos c-syntactic-element))
+         (offset (- (1+ column) anchor))
+         (steps (floor offset c-basic-offset)))
+    (* (max steps 1)
+       c-basic-offset)))
+
+(with-eval-after-load 'cc-mode
+  (c-add-style "linux-kernel"
+               '("linux"
+                 (c-basic-offset . 8)
+                 (c-label-minimum-indentation . 0)
+                 (c-offsets-alist
+                  (arglist-close         . c-lineup-close-paren)
+                  (arglist-cont-nonempty .
+                   (c-lineup-gcc-asm-reg c-lineup-arglist))
+                  (arglist-intro         . +)
+                  (brace-list-intro      . +)
+                  (c                     . c-lineup-C-comments)
+                  (case-label            . 0)
+                  (comment-intro         . c-lineup-comment)
+                  (cpp-define-intro      . +)
+                  (cpp-macro             . -1000)
+                  (cpp-macro-cont        . +)
+                  (defun-block-intro     . +)
+                  (else-clause           . 0)
+                  (func-decl-cont        . +)
+                  (inclass               . +)
+                  (inher-cont            . c-lineup-multi-inher)
+                  (knr-argdecl-intro     . 0)
+                  (label                 . -1000)
+                  (statement             . 0)
+                  (statement-block-intro . +)
+                  (statement-case-intro  . +)
+                  (statement-cont        . +)
+                  (substatement          . +)))))
+
+(setq-default c-default-style '((java-mode . "java")
                                 (awk-mode . "awk")
-                                (other . "bsd")))
+                                (other . "linux-kernel")))
+
+(setq c-ts-mode-indent-style 'linux
+      c-ts-indent-offset 8)
+
+(defun rc/c-ts-macro-continuation-p (_node _parent bol &rest _)
+  (save-excursion
+    (goto-char bol)
+    (and (zerop (forward-line -1))
+         (progn (end-of-line) (eq (char-before) ?\\)))))
+
+(defun rc/c-ts-top-level-in-preproc-p (_node parent &rest _)
+  (let ((p parent))
+    (while (and p (treesit-node-match-p
+                   p (rx bos "preproc_" (or "if" "ifdef" "elif" "elifdef" "else") eos)))
+      (setq p (treesit-node-parent p)))
+    (and p (not (equal p parent))
+         (treesit-node-match-p p "translation_unit"))))
+
+(defun rc/c-ts-broken-tree-p (_node parent bol &rest _)
+  (let ((ppss (save-excursion (syntax-ppss bol))))
+    (and (> (car ppss) 0)
+         (not (nth 8 ppss))
+         parent
+         (treesit-node-check (treesit-buffer-root-node) 'has-error)
+         (or (treesit-node-match-p parent (rx bos (or "translation_unit" "ERROR") eos))
+             (save-excursion (goto-char bol) (looking-at-p "}"))))))
+
+(defun rc/c-ts-open-brace-offset (_node _parent bol &rest _)
+  (save-excursion
+    (goto-char bol)
+    (let ((open (nth 1 (syntax-ppss)))
+          (closing (looking-at-p
+                    (rx (or "}" (seq (or "case" "default" "public" "private" "protected")
+                                     symbol-end))))))
+      (cond
+       ((or (looking-at-p "#")
+            (and (not closing)
+                 (looking-at-p (rx (+ (any alnum "_")) (* blank) ":" (not ":")))))
+        0)
+       ((memq (char-after open) '(?\( ?\[))
+        (goto-char (1+ open))
+        (current-column))
+       (t
+        (goto-char open)
+        (back-to-indentation)
+        (let (paren)
+          (while (and (setq paren (nth 1 (syntax-ppss)))
+                      (eq (char-after paren) ?\())
+            (goto-char paren)
+            (back-to-indentation)))
+        (+ (current-column) (if closing 0 c-ts-indent-offset)))))))
+
+(defun rc/c-ts-comment-star-p (_node _parent bol &rest _)
+  (and (nth 4 (save-excursion (syntax-ppss bol)))
+       (save-excursion (goto-char bol) (looking-at-p (rx "*")))))
+
+(defun rc/c-ts-comment-star-offset (_node _parent bol &rest _)
+  (save-excursion
+    (goto-char (nth 8 (syntax-ppss bol)))
+    (1+ (current-column))))
+
+(defun rc/c-ts-kernel-indent-rules ()
+  (treesit-simple-indent-add-rules
+   (if (derived-mode-p 'c++-ts-mode) 'cpp 'c)
+   '((rc/c-ts-macro-continuation-p no-indent)
+     (rc/c-ts-top-level-in-preproc-p column-0 0)
+     (rc/c-ts-comment-star-p column-0 rc/c-ts-comment-star-offset)
+     (rc/c-ts-broken-tree-p column-0 rc/c-ts-open-brace-offset))))
+
+(add-hook 'c-ts-mode-hook 'rc/c-ts-kernel-indent-rules)
+(add-hook 'c++-ts-mode-hook 'rc/c-ts-kernel-indent-rules)
 
 (add-hook 'c-mode-hook (lambda ()
                          (interactive)
                          (c-toggle-comment-style -1)))
+(add-hook 'c-ts-mode-hook (lambda ()
+                            (interactive)
+                            (c-ts-mode-toggle-comment-style -1)))
 
 (rc/require 'paredit)
 
@@ -82,7 +197,6 @@
 (require 'jai-mode)
 
 (require 'simpc-mode)
-(add-to-list 'auto-mode-alist '("\\.[hc]\\(pp\\)?\\'" . simpc-mode))
 (add-to-list 'auto-mode-alist '("\\.[b]\\'" . simpc-mode))
 
 (require 'tatr)
@@ -91,6 +205,8 @@
 
 (require 'c3-mode)
 
+(rc/require 'zig-mode)
+
 (defun rc/set-up-whitespace-handling ()
   (interactive)
   (whitespace-mode 1)
@@ -98,36 +214,40 @@
 
 (add-hook 'tuareg-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'c++-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'c++-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'c-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'c-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'simpc-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'java-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'java-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'lua-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'lua-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'rust-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'rust-ts-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'zig-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'scala-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'markdown-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'haskell-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'python-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'python-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'erlang-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'asm-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'fasm-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'go-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'go-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'nim-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'yaml-mode-hook 'rc/set-up-whitespace-handling)
+(add-hook 'yaml-ts-mode-hook 'rc/set-up-whitespace-handling)
 (add-hook 'porth-mode-hook 'rc/set-up-whitespace-handling)
 
-(defconst rc/tab-display-wide
-  `(face nil display ,(propertize "»\t" 'face 'whitespace-tab)))
-(defconst rc/tab-display-narrow
-  `(face nil display ,(propertize "»" 'face 'whitespace-tab)))
-
 (defun rc/tab-display ()
-  (if (= (% (1+ (save-excursion
-                  (goto-char (match-beginning 0))
-                  (current-column)))
-            tab-width)
-         0)
-      rc/tab-display-narrow
-    rc/tab-display-wide))
+  (let ((width (- tab-width
+                  (% (save-excursion
+                       (goto-char (match-beginning 0))
+                       (current-column))
+                     tab-width))))
+    `(face nil display ,(propertize (concat "»" (make-string (1- width) ?\s))
+                                    'face 'whitespace-tab))))
 
 (defun rc/set-up-c-tabs ()
   (interactive)
@@ -135,16 +255,25 @@
   (setq-local tab-width 8
               indent-tabs-mode t
               c-basic-offset 8
+              c-tab-always-indent nil
+              tab-always-indent nil
+              fill-column 100
               backward-delete-char-untabify-method nil
               whitespace-style (seq-difference whitespace-style
-                                               '(tab-mark indentation space-after-tab space-before-tab)))
+                                               '(tab-mark space-mark indentation space-after-tab space-before-tab)))
   (add-to-list (make-local-variable 'font-lock-extra-managed-props) 'display)
-  (font-lock-add-keywords nil '(("\t" 0 (rc/tab-display))) t)
-  (local-set-key (kbd "TAB") 'self-insert-command))
+  (font-lock-add-keywords nil '(("\t" 0 (rc/tab-display))) t))
 
 (add-hook 'c++-mode-hook 'rc/set-up-c-tabs)
 (add-hook 'c-mode-hook 'rc/set-up-c-tabs)
+(add-hook 'c-ts-mode-hook 'rc/set-up-c-tabs)
+(add-hook 'c++-ts-mode-hook 'rc/set-up-c-tabs)
 (add-hook 'simpc-mode-hook 'rc/set-up-c-tabs)
+(add-hook 'simpc-mode-hook
+          (lambda ()
+            (local-set-key (kbd "TAB") 'self-insert-command)))
+
+(editorconfig-mode 1)
 
 (global-display-line-numbers-mode)
 
@@ -231,6 +360,7 @@
   (flycheck-mode 1))
 
 (add-hook 'typescript-mode-hook 'rc/turn-on-tide-and-flycheck)
+(add-hook 'typescript-ts-mode-hook 'rc/turn-on-tide-and-flycheck)
 
 (rc/require 'proof-general)
 (add-hook 'coq-mode-hook
@@ -291,7 +421,7 @@
     (shell-command-on-region
      (point-min)
      (point-max)
-     "astyle --style=kr --indent=tab=8"
+     "astyle --indent=force-tab=8 --min-conditional-indent=0 --max-continuation-indent=120 --keep-one-line-blocks"
      nil
      t)
     (goto-char (point-min))

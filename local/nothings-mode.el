@@ -2,13 +2,10 @@
 
 (defvar nothings-mode-syntax-table
   (let ((table (make-syntax-table)))
-    ;; C/C++ style comments
 	(modify-syntax-entry ?/ ". 124b" table)
 	(modify-syntax-entry ?* ". 23" table)
 	(modify-syntax-entry ?\n "> b" table)
-    ;; Preprocessor stuff?
     (modify-syntax-entry ?# "." table)
-    ;; Chars are the same as strings
     (modify-syntax-entry ?' "\"" table)
     table))
 

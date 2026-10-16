@@ -25,13 +25,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-;;; Commentary:
-;;
-;; Major mode for JAI
-;;
-
-;;; Code:
-
 (require 'rx)
 (require 'js)
 (require 'compile)
@@ -41,7 +34,6 @@
     (modify-syntax-entry ?\" "\"" table)
     (modify-syntax-entry ?\\ "\\" table)
 
-    ;; additional symbols
     (modify-syntax-entry ?_ "w" table)
 
     (modify-syntax-entry ?' "." table)
@@ -58,7 +50,6 @@
     (modify-syntax-entry ?>  "." table)
     (modify-syntax-entry ??  "." table)
 
-    ;; Modify some syntax entries to allow nested block comments
     (modify-syntax-entry ?/ ". 124b" table)
     (modify-syntax-entry ?* ". 23n" table)
     (modify-syntax-entry ?\n "> b" table)
@@ -67,14 +58,6 @@
     table))
 
 
-;; This is needed for correct directive indentation.
-;; This jai-mode uses js-mode indentation, and it defines a bunch of C++-compatible crap
-;; for whatever reason. You could ask "what does javascript mode have to do with C++ preprocessor?",
-;; or "why does jai-mode use javascript indentation?".
-;; And my answer to that is - senator, I don't know, I just work here.
-;; This hack essentially turns those into "impossible" regexes
-;; (a word boundary at the beginning (`\\_<`) immediately followed by a word boundary at the end (`\\_>`))
-;; bypassing that codepath in js-mode entirely.
 (defconst cpp-font-lock-keywords-source-directives "\\_<\\_>")
 (defconst js--opt-cpp-start "\\_<\\_>")
 (defconst js--macro-decl-re "\\_<\\_>")
@@ -114,7 +97,6 @@
 (defun jai-syntax-propertize-function (start end)
   "Mark all heredoc regions as strings in the buffer."
   (goto-char start)
-  ;; If we're already inside a herestring we have to take care of that one first
   (when-let* ((ppss (syntax-ppss))
          (inside (eq t (nth 3 ppss)))
          (start-pos (nth 8 ppss))
@@ -132,7 +114,6 @@
         (put-text-property beg (1+ beg) 'here-string-marker tag)
         (put-text-property beg (1+ beg) 'syntax-table (string-to-syntax "|"))
         (when (re-search-forward (concat "^[[:space:]]*" "\\(" (regexp-quote tag) "\\)" "\\([[:space:]]*[[:punct:]]*;?$\\)") end 'move)
-          ;; Apply string syntax to everything between the start and end of heredoc
           (let ((end (match-end 1)))
             (put-text-property (1- end) end 'syntax-table (string-to-syntax "|"))
             ))))
@@ -151,7 +132,6 @@ and highlights the type name inside."
             (cast-start (match-beginning 0)))
         (save-excursion
           (goto-char open-paren-pos)
-          ;; Use forward-sexp to find the matching closing paren
           (condition-case nil
               (progn
                 (forward-sexp 1)
@@ -160,72 +140,53 @@ and highlights the type name inside."
                       (inner-end (1- (point)))
                       (type-start nil)
                       (type-end nil))
-                  ;; Look for the last word in the cast expression
                   (goto-char inner-start)
                   (while (re-search-forward "\\([[:word:]]+\\)" inner-end t)
                     (setq type-start (match-beginning 1))
                     (setq type-end (match-end 1)))
-                  ;; Store the positions for font-lock
                   (set-match-data (list cast-start close-paren-pos
-                                        cast-start (+ cast-start 2)  ; subgroup 1: .(
-                                        (1- close-paren-pos) close-paren-pos  ; subgroup 2: )
-                                        type-start type-end))  ; subgroup 3: Type (or nil if no word found)
+                                        cast-start (+ cast-start 2)
+                                        (1- close-paren-pos) close-paren-pos
+                                        type-start type-end))
                   (setq found t)))
-            (error nil)))))  ; If forward-sexp fails, continue searching
+            (error nil)))))
     found))
 
 (defconst jai-font-lock-defaults
-  `(;; .() Cast syntax - put this FIRST so it has priority
-    ;; Matching the type inside of .() is hacky.
-    ;; It breaks apart with things like foo.(get_type(baz=bark))
+  `(
     (jai-postfix-cast-syntax
      (1 font-lock-keyword-face)
      (2 font-lock-keyword-face)
      (3 font-lock-type-face))
 
-    ;; Keywords
     (,(jai-keywords-rx jai-keywords) 1 font-lock-keyword-face)
 
-    ;; single quote characters
     ("\\('[[:word:]]\\)\\>" 1 font-lock-constant-face)
 
-    ;; Variables
     (,(jai-keywords-rx jai-builtins) 1 font-lock-variable-name-face)
 
-    ;; Hash directives
     ("#\\w+" . font-lock-preprocessor-face)
 
-    ;; At notes
     ("@\\w+" . font-lock-preprocessor-face)
 
-    ;; Strings
     ("\\\".*\\\"" . font-lock-string-face)
 
-    ;; Numbers
     (,(jai-wrap-word-rx jai-number-rx) . font-lock-constant-face)
 
-    ;; Procedure names
     ("\\([[:word:]]+\\)[[:space:]]*:[[:space:]]*:?[[:space:]]*\\(inline\\|#type\\)?[[:space:]]*\(" 1 font-lock-function-name-face)
-
-    ;; Types
 
     (,(jai-keywords-rx jai-typenames) 1 font-lock-type-face)
 
     (,jai-dollar-type-rx 1 font-lock-type-face)
 
-    ;; Foo.{} and bar.[] matching
     ("\\([[:word:]]+\\)\\.\\(\{\\|\\[\\)" 1 font-lock-type-face)
 
     ("\\([[:word:]]+\\)[[:space:]]*:[[:space:]]*:[[:space:]]*\\(struct\\|enum\\|union\\|#type,\\)" 1 font-lock-type-face)
-    ;; TODO: This detects false-positives in case of `for it_index, it: foo`, it thinks that foo is a type.
-    ;; Emacs regexes do not support negative lookaheads, so I'd need to add proper logic to jai-syntax-propertize-function
-    ;; but it's too hard for now. Oh well!
     ("[[:word:]]+[[:space:]]*:[[:space:]]*\\**\\(\\[[[:word:]]*\\]\\|\\[\\.\\.\\]\\)?*[[:space:]]*\\**[[:space:]]*\\([[:word:]]+\\)" 2 font-lock-type-face)
 
     ("---" . font-lock-constant-face)
     ))
 
-;; add setq-local for older emacs versions
 (unless (fboundp 'setq-local)
   (defmacro setq-local (var val)
     `(set (make-local-variable ',var) ,val)))
@@ -278,7 +239,6 @@ and highlights the type name inside."
 (defalias 'jai-parent-mode
   (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
 
-;; imenu hookup
 (add-hook 'jai-mode-hook
           (lambda ()
             (setq imenu-generic-expression
@@ -286,9 +246,6 @@ and highlights the type name inside."
                     ("function" "^\\(.*\\) :: " 1)
                     ("struct" "^\\(.*\\) *:: *\\(struct\\)\\(.*\\){" 1)))))
 
-;; NOTE: taken from the scala-indent package and modified for Jai.
-;;   Still uses the js-indent-line as a base, which will have to be
-;;   replaced when the language is more mature.
 (defun jai--indent-on-parentheses ()
   (when (and (= (char-syntax (char-before)) ?\))
              (= (save-excursion (back-to-indentation) (point)) (1- (point))))
@@ -314,7 +271,6 @@ and highlights the type name inside."
   (setq-local beginning-of-defun-function 'jai-beginning-of-defun)
   (setq-local end-of-defun-function 'jai-end-of-defun)
   (setq-local syntax-propertize-function 'jai-syntax-propertize-function)
-  ;; add indent functionality to some characters
   (jai--add-self-insert-hooks)
 
   (font-lock-ensure))
@@ -328,4 +284,3 @@ and highlights the type name inside."
 (push 'jai compilation-error-regexp-alist)
 
 (provide 'jai-mode)
-;;; jai-mode.el ends here

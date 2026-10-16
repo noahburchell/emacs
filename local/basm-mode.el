@@ -25,11 +25,6 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-;;; Commentary:
-;;
-;; Major Mode for editing BASM Assembly Code. The language for a
-;; simple Virtual Machine.
-
 (defconst basm-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
     (modify-syntax-entry ?\; "<")
@@ -72,4 +67,3 @@
 
 (provide 'basm-mode)
 
-;;; basm-mode.el ends here

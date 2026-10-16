@@ -25,23 +25,13 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-;;; Commentary:
-;;
-;; Major Mode for editing Noq source code
-
 (defconst noq-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
-    ;; Python-style comments
     (modify-syntax-entry ?# "<")
     (modify-syntax-entry ?\n ">")
-    ;; C/C++ style comments
 	(modify-syntax-entry ?/ ". 124b")
 	(modify-syntax-entry ?* ". 23")
 	(modify-syntax-entry ?\n "> b")
-	;; (modify-syntax-entry ?/ ". 124b")
-	;; (modify-syntax-entry ?* ". 23")
-	;; (modify-syntax-entry ?\n "> b")
-    ;; Chars are the same as strings
     (modify-syntax-entry ?' "\"")
     (syntax-table))
   "Syntax table for `noq-mode'.")
@@ -56,18 +46,14 @@
 
 (defconst noq-highlights
   `((
-    ;; Keywords
     ,(regexp-opt noq-keywords 'words) . 'font-lock-keyword-face)
 
-    ;; `Apply` strategies
     (,(format "\\(%s\\)[\t ]*|" (mapconcat 'regexp-quote noq-apply-strategies "\\|"))
      1 'font-lock-type-face)
     ("\\([0-9]+\\)[\t ]*|" 1 'font-lock-type-face)
 
-    ;; Variables
     ("\\(^\\|[^a-zA-Z0-9_]\\)\\([_A-Z][_a-zA-Z0-9]*\\)" 2 'font-lock-variable-name-face)
 
-    ;; Functor names
     ("\\([^\n\| ]*\\)[\t ]*::" 1 'font-lock-function-name-face)
     ))
 
@@ -83,4 +69,3 @@
 
 (provide 'noq-mode)
 
-;;; noq-mode.el ends here

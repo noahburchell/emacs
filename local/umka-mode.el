@@ -25,24 +25,15 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-;;; Commentary:
-;;
-;; Major Mode for editing Umka source code.
-
 (require 'subr-x)
 
 (defvar umka-mode-syntax-table
   (let ((table (make-syntax-table)))
-    ;; C/C++ style comments
 	(modify-syntax-entry ?/ ". 124b" table)
 	(modify-syntax-entry ?* ". 23" table)
 	(modify-syntax-entry ?\n "> b" table)
-    ;; Preprocessor stuff?
     (modify-syntax-entry ?# "." table)
-    ;; Chars are the same as strings
     (modify-syntax-entry ?' "\"" table)
-    ;; Treat <> as punctuation (needed to highlight C++ keywords
-    ;; properly in template syntax)
     (modify-syntax-entry ?< "." table)
     (modify-syntax-entry ?> "." table)
 
@@ -70,21 +61,13 @@
    `(,(regexp-opt (umka-types) 'symbols) . font-lock-type-face)
    `(,(regexp-opt (umka-builtin) 'symbols) . font-lock-builtin-face)))
 
-;;; TODO: backport this to simpc-mode
 (defun umka--previous-non-empty-line ()
   "Returns either NIL when there is no such line or a pair (line . indentation)"
   (save-excursion
-    ;; If you are on the first line, but not at the beginning of buffer (BOB) the `(bobp)`
-    ;; function does not return `t`. So we have to move to the beginning of the line first.
-    ;; TODO: feel free to suggest a better approach for checking BOB here.
     (move-beginning-of-line nil)
     (if (bobp)
-        ;; If you are standing at the BOB, you by definition don't have a previous non-empty line.
         nil
-      ;; Moving one line backwards because the current line is by definition is not
-      ;; the previous non-empty line.
       (forward-line -1)
-      ;; Keep moving backwards until we hit BOB or a non-empty line.
       (while (and (not (bobp))
                   (string-empty-p
                    (string-trim-right
@@ -94,10 +77,7 @@
       (if (string-empty-p
            (string-trim-right
             (thing-at-point 'line t)))
-          ;; If after moving backwards for this long we still look at an empty
-          ;; line we by definition didn't find the previous empty line.
           nil
-        ;; We found the previous non-empty line!
         (cons (thing-at-point 'line t)
               (current-indentation))))))
 
@@ -127,7 +107,6 @@
           (max (- prev-indent indent-len) 0))
          (t prev-indent))))))
 
-;;; TODO: customizable indentation (amount of spaces, tabs, etc)
 (defun umka-indent-line ()
   (interactive)
   (when (not (bobp))
@@ -149,4 +128,3 @@
 
 (provide 'umka-mode)
 
-;;; umka-mode.el ends here

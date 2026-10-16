@@ -34,8 +34,6 @@
 ;; NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-;;; Code:
-
 (defvar fasm-mode-syntax-table
   (let ((syntaxtable (make-syntax-table)))
     (modify-syntax-entry ?_ "_" syntaxtable)
@@ -72,13 +70,12 @@
     (regexp-opt keywords 'symbols)))
 
 (defconst fasm-font-lock-keywords
-  `(;; Numbers
+  `(
     ("\\_<[01]+b\\_>" . 'font-lock-constant-face)
     ("\\_<[0-9][0-9a-fA-F]*h\\_>" . 'font-lock-constant-face)
     ("\\_<\\(?:0x\\|\\$\\)[0-9a-fA-F]+\\_>" . 'font-lock-constant-face)
     ("\\_<[0-9]+\\(?:\\.[0-9]*\\)?\\(?:e[+-]?[0-9]+\\)?\\_>"
      . 'font-lock-constant-face)
-    ;; Types
     (,(eval-when-compile
        (fasm--regexp-from-keywords
         "xx"
@@ -87,7 +84,6 @@
         "byte" "word" "dword" "fword" "pword" "qword" "tbyte" "tword"
         "dqword" "xword" "qqword" "yword" "db" "rb" "dw" "du" "rw" "dd" "rd"
         "df" "dp" "rf" "rp" "dq" "rq" "dt" "rt")) . 'font-lock-type-face)
-    ;; Directives and operators
     (,(eval-when-compile
        (fasm--regexp-from-keywords
         "labeling"
@@ -100,7 +96,7 @@
         "if"
         "end"
         "tail_call"
-        "finish" ;; as end
+        "finish"
 
         "literal"
         "address"
@@ -111,13 +107,11 @@
         "entry" "extrn" "label" "stack" "store" "times" "while" "assert"
         "format" "public" "repeat" "display" "section" "segment" "virtual"
         "file")) . 'font-lock-keyword-face)
-    ;; Preprocessor directives
     (,(eval-when-compile
        (fasm--regexp-from-keywords
         "define" "include" "irp" "irps" "macro" "match" "purge" "rept"
         "restore" "restruc" "struc" "common" "forward" "local" "reverse"
         "equ" "fix")) . 'font-lock-preprocessor-face)
-    ;; Registers
     (,(eval-when-compile
        (fasm--regexp-from-keywords
         "al" "bl" "cl" "dl" "spl" "bpl" "sil" "dil" "r8b" "r9b" "r10b" "r11b"
@@ -129,9 +123,6 @@
         "rax" "rbx" "rcx" "rdx" "rsp" "rbp" "rsi" "rdi"
         "r8" "r9" "r10" "r11" "r12" "r13" "r14" "r15"
 
-        ;; "xax" "xbx" "xcx" "xdx" "xsp" "xbp" "xsi" "xdi"
-        ;; "x8" "x9" "x10" "x11" "x12" "x13" "x14" "x15"
-
         "rip" "es" "cs" "ss" "ds" "fs" "gs" "cr0" "cr2" "cr3" "cr4" "dr0"
         "dr1" "dr2" "dr3" "st0" "st1" "st2" "st3" "st4" "st5" "st6" "st7"
         "mm0" "mm1" "mm2" "mm3" "mm4" "mm5" "mm6" "mm7" "xmm0" "xmm1" "xmm2"
@@ -139,7 +130,6 @@
         "xmm12" "xmm13" "xmm14" "xmm15" "ymm0" "ymm1" "ymm2" "ymm3" "ymm4"
         "ymm5" "ymm6" "ymm7" "ymm8" "ymm9" "ymm10" "ymm11" "ymm12" "ymm13"
         "ymm14" "ymm15")) . 'font-lock-variable-name-face)
-    ;; Instructions
     (,(eval-when-compile
        (fasm--regexp-from-keywords
         "bt" "in" "ja" "jb" "jc" "je" "jg" "jl" "jo" "jp" "js" "jz" "or"
@@ -371,10 +361,8 @@
         "vfmaddsub231pd" "vfmaddsub231ps" "vfmsubadd132pd" "vfmsubadd132ps"
         "vfmsubadd213pd" "vfmsubadd213ps" "vfmsubadd231pd" "vfmsubadd231ps"
         "aeskeygenassist" "vaeskeygenassist")) . 'font-lock-builtin-face)
-    ;; Labels
     ("^[ \t]*\\([a-z$A-Z0-9.?!@]\\(?:\\sw\\|\\s_\\)*\\):"
      . (1 'font-lock-function-name-face))
-    ;; Macro names
     ("\\(?:macro\\|struc\\)[ \t]+\\([a-zA-Z0-9.?!@]\\(?:\\sw\\|\\s_\\)*\\)"
      . (1 'font-lock-function-name-face)))
   "Syntax highlighting for FASM mode.")
@@ -382,19 +370,12 @@
 
 
 
-;; (defun fasm--get-indent-level (lineoffset)
-;;   (save-excursion
-;;     (forward-line (1- lineoffset))
-;;     (back-to-indentation)
-;;     (current-column)))
-
 (defun empty-line? ()
   (save-excursion
     (let ((column-a (progn (move-beginning-of-line nil)
                            (current-column)))
           (column-b (progn (back-to-indentation)
                            (current-column))))
-      ;; 下面这个谓词看似是冗余的 但是没有关系
       (and (= column-b column-a)
            (eq (following-char) 10))
       )))
@@ -412,14 +393,10 @@
            (whitespace-cleanup)
            (not (empty-line?)))
          (progn
-           ;; (whitespace-cleanup)
            (end-of-line)
-           (eq 58 ;; 58 -- ":"
+           (eq 58
                (above-char))))))
 
-;; (defun' test-fasm-get-indent ()
-;;   (interactive)
-;;   (message "><><><"))
 (defun fasm-get-indent (n)
   (save-excursion
     (forward-line n)
@@ -435,25 +412,19 @@
 (defun fasm-indent-line ()
   "Indent according to FASM major mode."
   (interactive)
-  ;; 可以发现缩进函数根本就写不好 因为emacs不能真正明白文本的语法
   (cond
-    ;; 下面是根据当前一行来缩进
     ((fasm-label?)
      (let ()
        (back-to-indentation)
        (delete-backward-char (current-column))))
-    ;; 下面是根据上一行来缩进
-    (t;; else
+    (t
      (back-to-indentation)
      (let ((prev-indent (fasm-get-indent -1))
            (curr-indent (current-column)))
        (cond ((equal prev-indent "empty-line")
-              ;; (indent-to 8)
               (indent-to 3)
               )
              ((equal prev-indent "fasm-label")
-              ;; (indent-to 0)
-              ;; 上面的那个命令根本不会缩进 这样看似是合理的 所以增加下面这句:
               (message "do not indent at all !"))
              ((< curr-indent prev-indent)
               (indent-to prev-indent))
@@ -463,7 +434,6 @@
               (delete-backward-char (- curr-indent prev-indent)))
              )))))
 
-;; Emacs < 24 did not have prog-mode
 (defalias 'fasm-parent-mode
     (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
 
@@ -477,4 +447,3 @@
   (set (make-local-variable 'comment-start) ";; "))
 
 (provide 'fasm-mode)
-;;; fasm-mode.el ends here

@@ -2,14 +2,10 @@
 
 (defvar c3-mode-syntax-table
   (let ((table (make-syntax-table)))
-    ;; C/C++ style comments
     (modify-syntax-entry ?/ ". 124b" table)
     (modify-syntax-entry ?* ". 23" table)
     (modify-syntax-entry ?\n "> b" table)
-    ;; Chars are the same as strings
     (modify-syntax-entry ?' "\"" table)
-    ;; Treat <> as punctuation (needed to highlight C++ keywords
-    ;; properly in template syntax)
     (modify-syntax-entry ?< "." table)
     (modify-syntax-entry ?> "." table)
     (modify-syntax-entry ?& "." table)
@@ -19,17 +15,12 @@
 (defun c3-types ()
   '("void" "bool"
     "ichar" "char"
-    ;; Integer types
     "short" "ushort" "int" "uint" "long" "ulong" "int128" "uint128"
     "iptr" "uptr"
     "isz" "usz"
-    ;; Floating point types
     "float16" "float" "double" "float128"
-    ;; Other types
     "any" "anyfault" "typeid"        
-    ;; C compatibility types
     "CChar" "CShort" "CUShort" "CInt" "CUInt" "CLong" "CULong" "CLongLong" "CULongLong" "CFloat" "CDouble" "CLongDouble"
-    ;; CT types
     "$typefrom" "$tyypeof" "$vatype"       
     ))
 

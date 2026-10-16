@@ -25,22 +25,11 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-;;; Commentary:
-;;
-;; Major Mode for editing Porth source code. It's Forth but written in Python.
-
-;; TODO: jump to the opposite side of the blocks with C-M-f and C-M-b
-;; I think tuareg-mode can do that with similar end-like block, we try
-;; to steal their approach
-;; TODO: color the names of definitions in const, memory, proc, etc differently
-
 (defconst porth-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
-    ;; C/C++ style comments
 	(modify-syntax-entry ?/ ". 124b")
 	(modify-syntax-entry ?* ". 23")
 	(modify-syntax-entry ?\n "> b")
-    ;; Chars are the same as strings
     (modify-syntax-entry ?' "\"")
     (syntax-table))
   "Syntax table for `porth-mode'.")
@@ -67,4 +56,3 @@
 
 (provide 'porth-mode)
 
-;;; porth-mode.el ends here
