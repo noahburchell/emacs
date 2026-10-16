@@ -344,6 +344,14 @@
 
 (global-company-mode)
 
+(setq company-show-quick-access t
+      company-require-match nil)
+
+(dolist (key '("RET" "<return>" "C-n" "C-p" "<up>" "<down>" "C-w" "C-s"))
+  (define-key company-active-map (kbd key) nil))
+(define-key company-active-map (kbd "TAB") #'company-complete-selection)
+(define-key company-active-map (kbd "<tab>") #'company-complete-selection)
+
 (add-hook 'tuareg-mode-hook
           (lambda ()
             (interactive)
