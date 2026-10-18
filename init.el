@@ -155,10 +155,45 @@
                             (interactive)
                             (c-ts-mode-toggle-comment-style -1)))
 
-(rc/require 'paredit)
+(rc/require 'paredit 'puni)
+
+(require 'puni)
+
+(electric-pair-mode 1)
+
+(defun rc/turn-on-puni ()
+  (interactive)
+  (puni-mode 1))
+
+(add-hook 'prog-mode-hook 'rc/turn-on-puni)
+(add-hook 'conf-mode-hook 'rc/turn-on-puni)
+(add-hook 'basm-mode-hook 'rc/turn-on-puni)
+
+(define-key puni-mode-map (kbd "C-)")      'puni-slurp-forward)
+(define-key puni-mode-map (kbd "C-}")      'puni-barf-forward)
+(define-key puni-mode-map (kbd "C-(")      'puni-slurp-backward)
+(define-key puni-mode-map (kbd "C-{")      'puni-barf-backward)
+(define-key puni-mode-map (kbd "M-(")      'puni-wrap-round)
+(define-key puni-mode-map (kbd "M-)")      nil)
+(define-key puni-mode-map (kbd "M-s")      'puni-splice)
+(define-key puni-mode-map (kbd "M-r")      'puni-raise)
+(define-key puni-mode-map (kbd "M-S")      'puni-split)
+(define-key puni-mode-map (kbd "M-<up>")   'puni-splice-killing-backward)
+(define-key puni-mode-map (kbd "M-<down>") 'puni-splice-killing-forward)
+
+(defun rc/python-dedent-or-delete (arg)
+  (interactive "*p")
+  (unless (python-indent-dedent-line)
+    (puni-backward-delete-char arg)))
+
+(with-eval-after-load 'python
+  (define-key python-base-mode-map
+              [remap puni-backward-delete-char] 'rc/python-dedent-or-delete))
 
 (defun rc/turn-on-paredit ()
   (interactive)
+  (electric-pair-local-mode -1)
+  (puni-mode -1)
   (paredit-mode 1))
 
 (add-hook 'emacs-lisp-mode-hook  'rc/turn-on-paredit)
@@ -447,7 +482,5 @@
                1 2 (4) (5)))
 
 (load custom-file t t)
-
-(define-key key-translation-map [?\C-h] [?\C-?])
 
 (global-set-key (kbd "C-S-v") 'yank)
