@@ -181,6 +181,16 @@
 (define-key puni-mode-map (kbd "M-<up>")   'puni-splice-killing-backward)
 (define-key puni-mode-map (kbd "M-<down>") 'puni-splice-killing-forward)
 
+(defun rc/kill-region-or-backward-word ()
+  (interactive)
+  (call-interactively
+   (cond ((not (use-region-p)) (key-binding (kbd "M-DEL")))
+         ((bound-and-true-p puni-mode) 'puni-kill-region)
+         (t 'kill-region))))
+
+(global-set-key (kbd "C-w") 'rc/kill-region-or-backward-word)
+(define-key puni-mode-map (kbd "C-w") 'rc/kill-region-or-backward-word)
+
 (defun rc/python-dedent-or-delete (arg)
   (interactive "*p")
   (unless (python-indent-dedent-line)
