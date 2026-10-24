@@ -368,7 +368,7 @@
 
 (add-hook 'markdown-mode-hook 'rc/enable-word-wrap)
 
-(add-to-list 'auto-mode-alist '("\\.html\\'" . nxml-mode))
+(add-to-list 'auto-mode-alist '("\\.html\\'" . mhtml-mode))
 (add-to-list 'auto-mode-alist '("\\.xsd\\'" . nxml-mode))
 (add-to-list 'auto-mode-alist '("\\.ant\\'" . nxml-mode))
 
